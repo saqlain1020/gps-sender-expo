@@ -1,15 +1,16 @@
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import MainComponent from './components/MainComponent/MainComponent';
-// import { Examples } from '@shoutem/ui'
+import { RecoilRoot } from "recoil"
 
 export default function App() {
   return (
-    <View style={styles.container}>
-      <MainComponent />
-      <StatusBar style="auto" />
-      {/* <Examples /> */}
-    </View>
+    <RecoilRoot>
+        <View style={styles.container}>
+          <MainComponent />
+          <StatusBar style="auto" />
+        </View>
+    </RecoilRoot>
   );
 }
 

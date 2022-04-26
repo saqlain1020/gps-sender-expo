@@ -1,12 +1,16 @@
 import React from "react";
 import { StyleSheet, Text, View, Button, ToastAndroid } from "react-native";
 import * as Location from "expo-location";
-import socket from "../../api/socket";
 import * as Application from "expo-application";
-import * as Device from "expo-device";
+import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil";
+import { locationState } from "../../state/socketAtom";
+import { useSocket } from "../../hooks/useSocket";
+import { deviceInfoState } from "../../state/deviceAtom";
 
 const MainComponent = () => {
-  const [location, setLocation] = React.useState(null);
+  const { connected, msg, location, disconnect, connect } = useSocket();
+  const setLocation = useSetRecoilState(locationState);
+  const deviceInfo = useRecoilValue(deviceInfoState);
   const [errorMsg, setErrorMsg] = React.useState(null);
   const [isTracking, setIsTracking] = React.useState(false);
   const [permission, setPermission] = React.useState(false);
@@ -38,13 +42,13 @@ const MainComponent = () => {
   };
 
   const handleLocationSend = () => {
-    let osName = Device.osName;
-    socket.emit("location", {
-      latitude: location?.coords.latitude,
-      longitude: location?.coords.longitude,
-      osName,
-      id: socket.id,
-    });
+    // let osName = Device.osName;
+    // socket.emit("location", {
+    //   latitude: location?.coords.latitude,
+    //   longitude: location?.coords.longitude,
+    //   osName,
+    //   id: socket.id,
+    // });
   };
 
   React.useEffect(() => {
@@ -53,18 +57,14 @@ const MainComponent = () => {
       int = setInterval(() => {
         getLocation();
       }, 1000);
-      socket.connect();
     } else {
       clearInterval(int);
-      socket.disconnect();
     }
     return () => {
       clearInterval(int);
-      socket.disconnect();
     };
   }, [isTracking]);
 
-  React.useEffect(handleLocationSend, [location]);
   return (
     <View styles={styles.container}>
       <Button
@@ -75,7 +75,19 @@ const MainComponent = () => {
       <Text>Latitude: {location?.coords.latitude}</Text>
       <Text>Longitude: {location?.coords.longitude}</Text>
       <Text style={{ color: "red" }}>{errorMsg}</Text>
-      <Button title="Send Location" onPress={handleLocationSend} />
+      <Text>Socket connection: {connected.toString()}</Text>
+      <Text>Server Message: {msg}</Text>
+      <Button
+        title={connected ? "Disconnect Socket" : "Connect Socket"}
+        color="#841584"
+        onPress={connected ? disconnect : connect}
+      />
+      <Text>Device Info:-</Text>
+      {Object.entries(deviceInfo).map(([key, value]) => (
+        <Text key={key}>
+          {key}: {value}
+        </Text>
+      ))}
     </View>
   );
 };
