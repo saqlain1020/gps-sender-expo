@@ -6,6 +6,9 @@ import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil";
 import { locationState } from "../../state/socketAtom";
 import { useSocket } from "../../hooks/useSocket";
 import { deviceInfoState } from "../../state/deviceAtom";
+import api from "../../util/api";
+import { REALTIME_SERVER } from "../../util/constants";
+import useBus from "../../hooks/useBus";
 
 const MainComponent = () => {
   const { connected, msg, location, disconnect, connect } = useSocket();
@@ -14,7 +17,9 @@ const MainComponent = () => {
   const [errorMsg, setErrorMsg] = React.useState(null);
   const [isTracking, setIsTracking] = React.useState(false);
   const [permission, setPermission] = React.useState(false);
-
+  const [status, setStatus] = React.useState(false);
+  const {busses} = useBus();
+console.log(busses)
   const getLocation = async () => {
     if (!permission) {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -50,7 +55,14 @@ const MainComponent = () => {
     //   id: socket.id,
     // });
   };
+  const checkStatus = async () => {
+    console.log(REALTIME_SERVER)
+    console.log(api.options)
+    let res = await api.get("/ping");
+    console.log(res.data.status);
 
+    setStatus(res.data.status);
+  };
   React.useEffect(() => {
     let int = null;
     if (isTracking) {
@@ -69,7 +81,6 @@ const MainComponent = () => {
     <View styles={styles.container}>
       <Button
         title={isTracking ? "Stop Tracking" : "Start Tracking"}
-        // color="#841584".
         onPress={isTracking ? stopTracking : handleClick}
       />
       <Text>Latitude: {location?.coords.latitude}</Text>
@@ -88,6 +99,7 @@ const MainComponent = () => {
           {key}: {value}
         </Text>
       ))}
+      <Button title={"Check Health"} color={status ? "rgb(0,255,0)" : "rgb(255,0,0)"} onPress={checkStatus} />
     </View>
   );
 };
