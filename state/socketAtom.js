@@ -72,6 +72,7 @@ export const locationState = atom({
           socket.emit(SocketEvent.LOCATION, {
             latitude: location?.coords.latitude,
             longitude: location?.coords.longitude,
+            bus: location?.bus,
           });
       });
     },

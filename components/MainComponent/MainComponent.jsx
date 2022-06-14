@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, Text, View, Button, ToastAndroid } from "react-native";
+import { StyleSheet, Text, View, ToastAndroid } from "react-native";
 import * as Location from "expo-location";
 import * as Application from "expo-application";
 import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil";
@@ -10,6 +10,8 @@ import api from "../../util/api";
 import { REALTIME_SERVER } from "../../util/constants";
 import useBus from "../../hooks/useBus";
 
+import { Select, Box, CheckIcon, Center, Button, NativeBaseProvider } from "native-base";
+
 const MainComponent = () => {
   const { connected, msg, location, disconnect, connect } = useSocket();
   const setLocation = useSetRecoilState(locationState);
@@ -18,8 +20,8 @@ const MainComponent = () => {
   const [isTracking, setIsTracking] = React.useState(false);
   const [permission, setPermission] = React.useState(false);
   const [status, setStatus] = React.useState(false);
-  const {busses} = useBus();
-console.log(busses)
+  const { busses, selected, selectBus } = useBus();
+
   const getLocation = async () => {
     if (!permission) {
       let { status } = await Location.requestForegroundPermissionsAsync();
@@ -32,12 +34,12 @@ console.log(busses)
       setErrorMsg("");
     } else setIsTracking(true);
     let location = await Location.getCurrentPositionAsync({});
-    setLocation(location);
+    setLocation({ ...location, bus: selected });
   };
 
   const handleClick = () => {
     setErrorMsg("");
-    setIsTracking(true);
+    if (selected) setIsTracking(true);
   };
 
   const stopTracking = () => {
@@ -56,8 +58,8 @@ console.log(busses)
     // });
   };
   const checkStatus = async () => {
-    console.log(REALTIME_SERVER)
-    console.log(api.options)
+    console.log(REALTIME_SERVER);
+    console.log(api.options);
     let res = await api.get("/ping");
     console.log(res.data.status);
 
@@ -79,27 +81,47 @@ console.log(busses)
 
   return (
     <View styles={styles.container}>
-      <Button
-        title={isTracking ? "Stop Tracking" : "Start Tracking"}
-        onPress={isTracking ? stopTracking : handleClick}
-      />
+      <Select
+        selectedValue={selected}
+        minWidth="200"
+        accessibilityLabel="Choose Service"
+        placeholder="Choose Bus"
+        _selectedItem={{
+          bg: "teal.600",
+          endIcon: <CheckIcon size="5" />,
+        }}
+        mb={5}
+        onValueChange={(itemValue) => selectBus(itemValue)}
+      >
+        {busses.map((item) => (
+          <Select.Item key={item.id} label={item.name} value={item.id} />
+        ))}
+      </Select>
+      <Button mb={5} onPress={isTracking ? stopTracking : handleClick}>
+        {isTracking ? "Stop Tracking" : "Start Tracking"}
+      </Button>
       <Text>Latitude: {location?.coords.latitude}</Text>
       <Text>Longitude: {location?.coords.longitude}</Text>
       <Text style={{ color: "red" }}>{errorMsg}</Text>
       <Text>Socket connection: {connected.toString()}</Text>
       <Text>Server Message: {msg}</Text>
-      <Button
-        title={connected ? "Disconnect Socket" : "Connect Socket"}
-        color="#841584"
-        onPress={connected ? disconnect : connect}
-      />
+      <Button colorScheme={"coolGray"} mt={5} mb={5} onPress={connected ? disconnect : connect}>
+        {connected ? "Disconnect Socket" : "Connect Socket"}
+      </Button>
       <Text>Device Info:-</Text>
       {Object.entries(deviceInfo).map(([key, value]) => (
         <Text key={key}>
           {key}: {value}
         </Text>
       ))}
-      <Button title={"Check Health"} color={status ? "rgb(0,255,0)" : "rgb(255,0,0)"} onPress={checkStatus} />
+      <Button
+        //  color={status ? "rgb(0,255,0)" : "rgb(255,0,0)"}
+        colorScheme={status ? "emerald" : "amber"}
+        onPress={checkStatus}
+        mt={5}
+      >
+        Check Health
+      </Button>
     </View>
   );
 };
