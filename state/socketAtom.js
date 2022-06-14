@@ -44,12 +44,15 @@ export const socketConnected = atom({
 
 export const socketMessage = atom({
   key: "socketMessage", 
-  default: "",
+  default: null,
   effects: [
     ({ setSelf, getLoadable }) => {
       const connected = getLoadable(socketConnected);
       // setSelf sets the value of the atom, which we can listen to.
-      const setMsg = (msg) => setSelf(msg);
+      const setMsg = (msg) => {
+        console.log("received",msg)
+        setSelf(msg)
+      };
       if (connected) {
         // When socket receives a message it will call the setMsg function.
         socket.on(SocketEvent.MESSAGE, setMsg);

@@ -79,6 +79,7 @@ const MainComponent = () => {
     };
   }, [isTracking]);
 
+    console.log(busses)
   return (
     <View styles={styles.container}>
       <Select
