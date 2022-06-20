@@ -1,8 +1,8 @@
 import axios from "axios";
-import { REALTIME_SERVER, REALTIME_SERVER_DEVELOPMENT } from "./constants";
+import { SERVER_URL } from "./constants";
 
 let api = axios.create({
-    baseURL: process.env.NODE_ENV === "production" ? REALTIME_SERVER : REALTIME_SERVER_DEVELOPMENT,
+  baseURL: SERVER_URL,
 });
 
 export default api;

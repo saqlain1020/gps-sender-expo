@@ -1,4 +1,5 @@
 import { atom } from "recoil";
+import { SocketEvent } from "../util/constants";
 import api from "./../util/api";
 import { socket } from "./socketAtom";
 
@@ -17,7 +18,7 @@ const busState = atom({
       }));
     },
     async ({ setSelf }) => {
-      socket.on("busLocation", (data) => {
+      socket.on(SocketEvent.BUS_LOCATION, (data) => {
         setSelf((obj) => {
           let busses = obj.busses.map((item) => {
             if (item.id === data.bus) {

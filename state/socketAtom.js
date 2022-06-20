@@ -1,12 +1,10 @@
 import { atom } from "recoil";
 
 import io from "socket.io-client";
-import { REALTIME_SERVER, REALTIME_SERVER_DEVELOPMENT, SocketEvent } from "../util/constants";
+import { SERVER_URL, SocketEvent } from "../util/constants";
 import { deviceInfoState } from "./deviceAtom";
 
-const SOCKET_CONNECTION = process.env.NODE_ENV === "production" ? REALTIME_SERVER : REALTIME_SERVER_DEVELOPMENT;
-
-export const socket = io(SOCKET_CONNECTION, {
+export const socket = io(SERVER_URL, {
   secure: process.env.NODE_ENV === "production" ? true : false,
   autoConnect: false,
 });
@@ -43,15 +41,15 @@ export const socketConnected = atom({
 });
 
 export const socketMessage = atom({
-  key: "socketMessage", 
+  key: "socketMessage",
   default: null,
   effects: [
     ({ setSelf, getLoadable }) => {
       const connected = getLoadable(socketConnected);
       // setSelf sets the value of the atom, which we can listen to.
       const setMsg = (msg) => {
-        console.log("received",msg)
-        setSelf(msg)
+        console.log("received", msg);
+        setSelf(msg);
       };
       if (connected) {
         // When socket receives a message it will call the setMsg function.
@@ -71,7 +69,7 @@ export const locationState = atom({
       onSet((location) => {
         // location is the new value of the state
         if (socket.connected)
-        // Sending events to socket server when state is changed.
+          // Sending events to socket server when state is changed.
           socket.emit(SocketEvent.LOCATION, {
             latitude: location?.coords.latitude,
             longitude: location?.coords.longitude,

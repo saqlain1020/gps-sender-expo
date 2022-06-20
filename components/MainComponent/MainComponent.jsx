@@ -7,7 +7,6 @@ import { locationState } from "../../state/socketAtom";
 import { useSocket } from "../../hooks/useSocket";
 import { deviceInfoState } from "../../state/deviceAtom";
 import api from "../../util/api";
-import { REALTIME_SERVER } from "../../util/constants";
 import useBus from "../../hooks/useBus";
 
 import { Select, Box, CheckIcon, Center, Button, NativeBaseProvider } from "native-base";
@@ -58,7 +57,6 @@ const MainComponent = () => {
     // });
   };
   const checkStatus = async () => {
-    console.log(REALTIME_SERVER);
     console.log(api.options);
     let res = await api.get("/ping");
     console.log(res.data.status);
