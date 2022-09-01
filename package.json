@@ -18,6 +18,7 @@
     "expo-location": "~14.0.1",
     "expo-network": "~4.1.0",
     "expo-status-bar": "~1.2.0",
+    "expo-task-manager": "~10.1.0",
     "native-base": "^3.4.6",
     "react": "17.0.1",
     "react-dom": "17.0.1",

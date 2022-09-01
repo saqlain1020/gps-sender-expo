@@ -9,7 +9,11 @@ import { deviceInfoState } from "../../state/deviceAtom";
 import api from "../../util/api";
 import useBus from "../../hooks/useBus";
 
+import * as TaskManager from 'expo-task-manager';
 import { Select, Box, CheckIcon, Center, Button, NativeBaseProvider } from "native-base";
+
+
+const LOCATION_TASK_NAME = 'background-location-task';
 
 const MainComponent = () => {
   const { connected, msg, location, disconnect, connect } = useSocket();
@@ -21,10 +25,38 @@ const MainComponent = () => {
   const [status, setStatus] = React.useState(false);
   const { busses, selected, selectBus } = useBus();
 
+  const requestPermissions = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status === 'granted') {
+      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+        accuracy: Location.Accuracy.Balanced,
+        timeInterval: 1000,
+      });
+    }
+  };
+
+  // React.useEffect(()=>{
+  //   Location.requestBackgroundPermissionsAsync().then();
+  //   let vari = 1;
+  //   TaskManager.defineTask(LOCATION_TASK_NAME, ({ data, error }) => {
+  //     if (error) {
+  //       // Error occurred - check `error.message` for more details.
+  //       return;
+  //     }
+  //     if (data) {
+  //       const { locations } = data;
+  //       // do something with the locations captured in the background
+  //       setErrorMsg(()=>vari)
+  //       console.log("bg",vari++,locations)
+  //     }
+  //   });
+  //   requestPermissions();
+  // },[])
+  
   const getLocation = async () => {
     if (!permission) {
       let { status } = await Location.requestForegroundPermissionsAsync();
-      await Location.requestBackgroundPermissionsAsync();
+      let bg = await Location.requestBackgroundPermissionsAsync();
       if (status !== "granted") {
         setErrorMsg("Permission to access location was denied");
         setIsTracking(false);
@@ -34,7 +66,7 @@ const MainComponent = () => {
       setErrorMsg("");
     } else setIsTracking(true);
     let location = await Location.getCurrentPositionAsync({});
-    setLocation({ ...location, bus: selected });
+    setLocation(()=>({ ...location, bus: selected }));
   };
 
   const handleClick = () => {
@@ -58,6 +90,7 @@ const MainComponent = () => {
     // });
   };
   const checkStatus = async () => {
+    // getLocation()
     console.log(api.options);
 
     let res = await api.get("/ping");
@@ -70,7 +103,7 @@ const MainComponent = () => {
     if (isTracking) {
       int = setInterval(() => {
         getLocation();
-      }, 1000);
+      }, 2000);
     } else {
       clearInterval(int);
     }
@@ -79,7 +112,7 @@ const MainComponent = () => {
     };
   }, [isTracking]);
 
-  console.log(busses);
+
   return (
     <View styles={styles.container}>
       <Select
