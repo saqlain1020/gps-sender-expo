@@ -24,6 +24,7 @@ const MainComponent = () => {
   const getLocation = async () => {
     if (!permission) {
       let { status } = await Location.requestForegroundPermissionsAsync();
+      await Location.requestBackgroundPermissionsAsync();
       if (status !== "granted") {
         setErrorMsg("Permission to access location was denied");
         setIsTracking(false);
@@ -58,6 +59,7 @@ const MainComponent = () => {
   };
   const checkStatus = async () => {
     console.log(api.options);
+
     let res = await api.get("/ping");
     console.log(res.data.status);
 
@@ -77,7 +79,7 @@ const MainComponent = () => {
     };
   }, [isTracking]);
 
-    console.log(busses)
+  console.log(busses);
   return (
     <View styles={styles.container}>
       <Select
