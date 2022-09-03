@@ -1,6 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, Text, View } from "react-native";
 import MainComponent from "./components/MainComponent/MainComponent";
+import LocationBG from "./components/LocationBG/LocationBG";
 import { RecoilRoot } from "recoil";
 import { NativeBaseProvider, Box } from "native-base";
 
@@ -10,6 +11,7 @@ export default function App() {
       <NativeBaseProvider>
         <View style={styles.container}>
           <MainComponent />
+          {/* <LocationBG/> */}
           <StatusBar style="auto" />
         </View>
       </NativeBaseProvider>

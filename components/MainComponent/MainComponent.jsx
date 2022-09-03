@@ -9,109 +9,132 @@ import { deviceInfoState } from "../../state/deviceAtom";
 import api from "../../util/api";
 import useBus from "../../hooks/useBus";
 
-import * as TaskManager from 'expo-task-manager';
+import * as Clipboard from 'expo-clipboard';
+import * as TaskManager from "expo-task-manager";
 import { Select, Box, CheckIcon, Center, Button, NativeBaseProvider } from "native-base";
 
+var selectedBusId = "";
+var globalIp = "";
+var globalMac = "";
 
-const LOCATION_TASK_NAME = 'background-location-task';
-
+const LOCATION_TASK_NAME = "LOCATION_TASK_NAME";
+let count = 0;
+// Define the background task for location tracking
+TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
+  if (error) {
+    console.error(error);
+    return;
+  }
+  if (data) {
+    // Extract location coordinates from data
+    const { locations } = data;
+    const location = locations[0];
+    console.log(deviceInfoState.__cTag);
+    if (location) {
+      globalLocation = location;
+      console.log("store", selectedBusId);
+      console.log(
+        "Location in background",
+        ++count,
+        location.coords.longitude,
+        location.coords.latitude,
+        selectedBusId
+      );
+      if (selectedBusId && globalIp && globalMac)
+        api
+          .post("/api/v1/location", {
+            bus: selectedBusId,
+            latitude: location.coords.latitude,
+            longitude: location.coords.longitude,
+            senderIp: globalIp,
+            mac: globalMac,
+          })
+          .then((res) => {
+            console.log("Location Posted");
+          })
+          .catch((err) => {
+            console.log("Error Posting", err);
+          });
+    }
+  }
+});
 const MainComponent = () => {
-  const { connected, msg, location, disconnect, connect } = useSocket();
-  const setLocation = useSetRecoilState(locationState);
+  // const { connected, msg, location, disconnect, connect } = useSocket();
+  // const setLocation = useSetRecoilState(locationState);
   const deviceInfo = useRecoilValue(deviceInfoState);
   const [errorMsg, setErrorMsg] = React.useState(null);
-  const [isTracking, setIsTracking] = React.useState(false);
-  const [permission, setPermission] = React.useState(false);
   const [status, setStatus] = React.useState(false);
   const { busses, selected, selectBus } = useBus();
+  const [isTracking, setIsTracking] = React.useState(false);
 
-  const requestPermissions = async () => {
-    const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status === 'granted') {
-      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.Balanced,
-        timeInterval: 1000,
-      });
-    }
-  };
-
-  // React.useEffect(()=>{
-  //   Location.requestBackgroundPermissionsAsync().then();
-  //   let vari = 1;
-  //   TaskManager.defineTask(LOCATION_TASK_NAME, ({ data, error }) => {
-  //     if (error) {
-  //       // Error occurred - check `error.message` for more details.
-  //       return;
-  //     }
-  //     if (data) {
-  //       const { locations } = data;
-  //       // do something with the locations captured in the background
-  //       setErrorMsg(()=>vari)
-  //       console.log("bg",vari++,locations)
-  //     }
-  //   });
-  //   requestPermissions();
-  // },[])
-  
-  const getLocation = async () => {
-    if (!permission) {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      let bg = await Location.requestBackgroundPermissionsAsync();
-      if (status !== "granted") {
-        setErrorMsg("Permission to access location was denied");
-        setIsTracking(false);
-        return;
-      }
-      setPermission(true);
-      setErrorMsg("");
-    } else setIsTracking(true);
-    let location = await Location.getCurrentPositionAsync({});
-    setLocation(()=>({ ...location, bus: selected }));
-  };
-
-  const handleClick = () => {
-    setErrorMsg("");
-    if (selected) setIsTracking(true);
-  };
-
-  const stopTracking = () => {
-    setIsTracking(false);
-    setLocation(null);
-    setErrorMsg("");
-  };
-
-  const handleLocationSend = () => {
-    // let osName = Device.osName;
-    // socket.emit("location", {
-    //   latitude: location?.coords.latitude,
-    //   longitude: location?.coords.longitude,
-    //   osName,
-    //   id: socket.id,
-    // });
-  };
   const checkStatus = async () => {
-    // getLocation()
-    console.log(api.options);
-
     let res = await api.get("/ping");
     console.log(res.data.status);
 
     setStatus(res.data.status);
   };
-  React.useEffect(() => {
-    let int = null;
-    if (isTracking) {
-      int = setInterval(() => {
-        getLocation();
-      }, 2000);
-    } else {
-      clearInterval(int);
-    }
-    return () => {
-      clearInterval(int);
-    };
-  }, [isTracking]);
 
+  const startBackgroundUpdate = async () => {
+    // Don't track position if permission is not granted
+    const { granted } = await Location.getBackgroundPermissionsAsync();
+    if (!granted) {
+      console.log("location tracking denied");
+      return;
+    }
+
+    // Make sure the task is defined otherwise do not start tracking
+    const isTaskDefined = await TaskManager.isTaskDefined(LOCATION_TASK_NAME);
+    if (!isTaskDefined) {
+      console.log("Task is not defined");
+      return;
+    }
+
+    // Don't track if it is already running in background
+    const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+    if (hasStarted) {
+      console.log("Already started");
+      setIsTracking(true);
+      return;
+    }
+
+    await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+      // For better logs, we set the accuracy to the most sensitive option
+      accuracy: Location.Accuracy.BestForNavigation,
+      // Make sure to enable this notification if you want to consistently track in the background
+      showsBackgroundLocationIndicator: true,
+      //   distanceInterval: 1,
+      foregroundService: {
+        notificationTitle: "Location",
+        notificationBody: "Location tracking in background",
+        notificationColor: "#fff",
+      },
+    });
+    setIsTracking(true);
+  };
+
+  // Stop location tracking in background
+  const stopBackgroundUpdate = async () => {
+    const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+    if (hasStarted) {
+      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+      setIsTracking(false);
+      console.log("Location tacking stopped");
+    }
+  };
+
+  // Request permissions right after starting the app
+  React.useEffect(() => {
+    const requestPermissions = async () => {
+      const foreground = await Location.requestForegroundPermissionsAsync();
+      if (foreground.granted) await Location.requestBackgroundPermissionsAsync();
+    };
+    requestPermissions();
+  }, []);
+
+  React.useEffect(() => {
+    globalIp = deviceInfo.ip;
+    globalMac = deviceInfo.mac;
+  }, [deviceInfo]);
 
   return (
     <View styles={styles.container}>
@@ -125,23 +148,21 @@ const MainComponent = () => {
           endIcon: <CheckIcon size="5" />,
         }}
         mb={5}
-        onValueChange={(itemValue) => selectBus(itemValue)}
+        onValueChange={(itemValue) => {
+          selectBus(itemValue);
+          selectedBusId = itemValue
+        }}
       >
         {busses.map((item) => (
           <Select.Item key={item.id} label={item.name} value={item.id} />
         ))}
       </Select>
-      <Button mb={5} onPress={isTracking ? stopTracking : handleClick}>
+      <Button mb={5} onPress={isTracking ? stopBackgroundUpdate : startBackgroundUpdate}>
         {isTracking ? "Stop Tracking" : "Start Tracking"}
       </Button>
-      <Text>Latitude: {location?.coords.latitude}</Text>
-      <Text>Longitude: {location?.coords.longitude}</Text>
+
       <Text style={{ color: "red" }}>{errorMsg}</Text>
-      <Text>Socket connection: {connected.toString()}</Text>
-      <Text>Server Message: {msg}</Text>
-      <Button colorScheme={"coolGray"} mt={5} mb={5} onPress={connected ? disconnect : connect}>
-        {connected ? "Disconnect Socket" : "Connect Socket"}
-      </Button>
+
       <Text>Device Info:-</Text>
       {Object.entries(deviceInfo).map(([key, value]) => (
         <Text key={key}>
@@ -155,6 +176,14 @@ const MainComponent = () => {
         mt={5}
       >
         Check Health
+      </Button>
+      <Button
+        //  color={status ? "rgb(0,255,0)" : "rgb(255,0,0)"}
+        colorScheme={"cyan"}
+        onPress={()=>Clipboard.setString(deviceInfo.mac)}
+        mt={5}
+      >
+        Copy Mac
       </Button>
     </View>
   );
