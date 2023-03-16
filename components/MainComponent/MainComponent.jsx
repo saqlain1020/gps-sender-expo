@@ -8,8 +8,8 @@ import { useSocket } from "../../hooks/useSocket";
 import { deviceInfoState } from "../../state/deviceAtom";
 import api from "../../util/api";
 import useBus from "../../hooks/useBus";
-
-import * as Clipboard from 'expo-clipboard';
+import { BarCodeScanner } from "expo-barcode-scanner";
+import * as Clipboard from "expo-clipboard";
 import * as TaskManager from "expo-task-manager";
 import { Select, Box, CheckIcon, Center, Button, NativeBaseProvider } from "native-base";
 
@@ -66,6 +66,8 @@ const MainComponent = () => {
   const [status, setStatus] = React.useState(false);
   const { busses, selected, selectBus } = useBus();
   const [isTracking, setIsTracking] = React.useState(false);
+  const [readingQr, setReadingQr] = React.useState(false);
+  const [qrValidity,setQrValidity] = React.useState("-")
 
   const checkStatus = async () => {
     let res = await api.get("/ping");
@@ -122,6 +124,27 @@ const MainComponent = () => {
     }
   };
 
+  const requestCameraPermission = async () => {
+    const getBarCodeScannerPermissions = async () => {
+      const { status } = await BarCodeScanner.requestPermissionsAsync();
+    };
+
+    getBarCodeScannerPermissions();
+  };
+
+  const handleBarCodeScanned =async ({ type, data }) => {
+    setReadingQr(false);
+    const res = await api.get("/api/v1/user/"+data);
+    const subscribedTillDate = new Date(res.data.subscribedTill);
+    const currentDate = new Date();
+    // check if the user is subscribed
+    if(subscribedTillDate.getTime() < currentDate.getTime()){
+      setQrValidity("EXPIRED")
+    }else{
+      setQrValidity("SUCCESS")
+    }
+  };
+
   // Request permissions right after starting the app
   React.useEffect(() => {
     const requestPermissions = async () => {
@@ -129,6 +152,7 @@ const MainComponent = () => {
       if (foreground.granted) await Location.requestBackgroundPermissionsAsync();
     };
     requestPermissions();
+    requestCameraPermission();
   }, []);
 
   React.useEffect(() => {
@@ -150,7 +174,7 @@ const MainComponent = () => {
         mb={5}
         onValueChange={(itemValue) => {
           selectBus(itemValue);
-          selectedBusId = itemValue
+          selectedBusId = itemValue;
         }}
       >
         {busses.map((item) => (
@@ -180,11 +204,21 @@ const MainComponent = () => {
       <Button
         //  color={status ? "rgb(0,255,0)" : "rgb(255,0,0)"}
         colorScheme={"cyan"}
-        onPress={()=>Clipboard.setString(deviceInfo.mac)}
+        onPress={() => Clipboard.setString(deviceInfo.mac)}
         mt={5}
       >
         Copy Mac
       </Button>
+      <Button
+        //  color={status ? "rgb(0,255,0)" : "rgb(255,0,0)"}
+        colorScheme={"gray"}
+        onPress={() => {setReadingQr(!readingQr);setQrValidity("-")}}
+        mt={5}
+      >
+        {readingQr?"Close QR":"Read QR"}
+      </Button>
+      {readingQr && <BarCodeScanner onBarCodeScanned={handleBarCodeScanned} style={[styles.qrContainer]} />}
+      {!readingQr && qrValidity && <Text style={{...styles.resultText,color:qrValidity==="EXPIRED"?"red":"green"}}>{qrValidity}</Text>}
     </View>
   );
 };
@@ -199,4 +233,18 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     alignItems: "flex-start",
   },
+  qrContainer: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+    position: "absolute",
+    top: "-10%",
+    left: "-25%",
+  },
+  resultText:{
+    fontSize: 40,
+    fontWeight: "bold",
+    textAlign:"center",
+    color:"green"
+  }
 });
